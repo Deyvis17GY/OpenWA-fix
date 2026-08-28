@@ -233,6 +233,25 @@ class SessionResponse(TypedDict):
     # session mid automatic-reconnect (engine present) and one stopped with no engine. Absent from a
     # gateway that predates the field (the TypedDict is total=False).
     engineLoaded: bool
+    proxyEnabled: bool
+    proxyType: NotRequired[ProxyType | None]
+    proxyHost: NotRequired[str | None]
+
+
+class SessionProxy(TypedDict):
+    """Masked per-session proxy configuration — credentials are never returned."""
+
+    enabled: bool
+    proxyType: ProxyType | None
+    proxyHost: str | None
+    hasCredentials: bool
+
+
+class UpdateSessionProxyRequest(TypedDict, total=False):
+    """Update per-session proxy settings. Send proxyUrl=null to clear. Applies on the next start."""
+
+    proxyUrl: str | None
+    proxyType: ProxyType | None
 
 
 class SessionConfig(TypedDict):
