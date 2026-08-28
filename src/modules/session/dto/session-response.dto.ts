@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { Session } from '../entities/session.entity';
 import { SessionStatus } from '../entities/session.entity';
+import { projectSessionProxy } from './session-proxy.dto';
 
 export class AccountRestrictionDto {
   @ApiProperty({
@@ -94,6 +95,28 @@ export class SessionResponseDto {
   })
   engineLoaded!: boolean;
 
+  @ApiProperty({
+    description: 'Whether a per-session egress proxy is configured',
+    example: false,
+  })
+  proxyEnabled!: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['http', 'https', 'socks4', 'socks5'],
+    description: 'Configured proxy protocol when `proxyEnabled` is true',
+    nullable: true,
+    example: 'http',
+  })
+  proxyType!: 'http' | 'https' | 'socks4' | 'socks5' | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Proxy host:port parsed from the stored URL — credentials are never returned',
+    nullable: true,
+    example: 'proxy.example.com:8080',
+  })
+  proxyHost!: string | null;
+
   /**
    * Map a Session entity to the public response shape, stripping sensitive
    * engine config fields (`config`, `proxyUrl`, `proxyType`) that must not
@@ -105,6 +128,7 @@ export class SessionResponseDto {
    * any future caller) and the dashboard would then offer Start to a running session.
    */
   static fromEntity(session: Session, engineLoaded: boolean): SessionResponseDto {
+    const proxy = projectSessionProxy(session);
     return {
       id: session.id,
       name: session.name,
@@ -126,6 +150,9 @@ export class SessionResponseDto {
           }
         : null,
       engineLoaded,
+      proxyEnabled: proxy.enabled,
+      proxyType: proxy.proxyType,
+      proxyHost: proxy.proxyHost,
     };
   }
 }

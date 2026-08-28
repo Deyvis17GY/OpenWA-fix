@@ -33,6 +33,20 @@ export interface SessionConfig {
   reconnectBaseDelay: number;
 }
 
+export type SessionProxyType = 'http' | 'https' | 'socks4' | 'socks5';
+
+export interface SessionProxy {
+  enabled: boolean;
+  proxyType: SessionProxyType | null;
+  proxyHost: string | null;
+  hasCredentials: boolean;
+}
+
+export interface CreateSessionOptions {
+  proxyUrl?: string;
+  proxyType?: SessionProxyType;
+}
+
 export interface Session {
   id: string;
   name: string;
@@ -69,6 +83,11 @@ export interface Session {
    * dashboard can be served by a gateway that predates the field.
    */
   restriction?: AccountRestriction | null;
+  /** Whether a per-session egress proxy is configured. Optional for gateways predating the field. */
+  proxyEnabled?: boolean;
+  proxyType?: SessionProxyType | null;
+  /** host:port only — credentials are never returned. */
+  proxyHost?: string | null;
 }
 
 /** One participant's presence within a chat. */
@@ -755,16 +774,28 @@ async function requestBlob(endpoint: string): Promise<Blob> {
 export const sessionApi = {
   list: () => request<Session[]>('/sessions'),
   get: (id: string) => request<Session>(`/sessions/${id}`),
-  create: (name: string) =>
+  create: (name: string, options?: CreateSessionOptions) =>
     request<Session>('/sessions', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({
+        name,
+        ...(options?.proxyUrl ? { proxyUrl: options.proxyUrl, proxyType: options.proxyType ?? 'http' } : {}),
+      }),
     }),
   delete: (id: string) => request<void>(`/sessions/${id}`, { method: 'DELETE' }),
   getConfig: (id: string) => request<SessionConfig>(`/sessions/${id}/config`),
   // PATCH merges: only the keys sent are touched. Send null to clear one back to its default.
   updateConfig: (id: string, patch: Partial<Record<keyof SessionConfig, boolean | number | null>>) =>
     request<SessionConfig>(`/sessions/${id}/config`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  getProxy: (id: string) => request<SessionProxy>(`/sessions/${id}/proxy`),
+  updateProxy: (
+    id: string,
+    patch: { proxyUrl?: string | null; proxyType?: SessionProxyType | null },
+  ) =>
+    request<SessionProxy>(`/sessions/${id}/proxy`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
     }),

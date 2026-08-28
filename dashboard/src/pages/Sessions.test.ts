@@ -27,6 +27,9 @@ const SESSION_QR: Session = {
   status: 'qr_ready',
   engineLoaded: true,
   phone: null,
+  proxyEnabled: true,
+  proxyType: 'http',
+  proxyHost: 'proxy.internal:8080',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -41,6 +44,9 @@ const SESSION_STALE_ENGINE: Session = {
   status: 'disconnected',
   engineLoaded: true,
   phone: '15550009999',
+  proxyEnabled: false,
+  proxyType: null,
+  proxyHost: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -78,6 +84,7 @@ const fetchCalls: FetchCall[] = [];
 
 function resetFetchCalls(): void {
   fetchCalls.length = 0;
+  sessionProxy = { enabled: false, proxyType: null, proxyHost: null, hasCredentials: false };
 }
 
 function findFetchCall(method: string, path: string): FetchCall | undefined {
@@ -91,6 +98,12 @@ function findFetchCall(method: string, path: string): FetchCall | undefined {
 // Mutable so a test can set the starting value and observe what a PATCH wrote back.
 let sessionConfig = { autoRejectCalls: false, maxReconnectAttempts: null as number | null, reconnectBaseDelay: 5000 };
 let configPatchFails = false;
+let sessionProxy = {
+  enabled: false,
+  proxyType: null as string | null,
+  proxyHost: null as string | null,
+  hasCredentials: false,
+};
 
 function installFetchStub(): void {
   globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -111,7 +124,17 @@ function installFetchStub(): void {
     if (method === 'GET' && path === '/api/sessions') return Promise.resolve(jsonResponse(SESSIONS));
 
     if (method === 'POST' && path === '/api/sessions') {
-      const name = (body as { name?: string } | undefined)?.name ?? 'unnamed';
+      const payload = body as { name?: string; proxyUrl?: string; proxyType?: string } | undefined;
+      const name = payload?.name ?? 'unnamed';
+      let proxyEnabled = false;
+      let proxyType: string | null = null;
+      let proxyHost: string | null = null;
+      if (payload?.proxyUrl) {
+        const parsed = new URL(payload.proxyUrl);
+        proxyEnabled = true;
+        proxyType = payload.proxyType ?? 'http';
+        proxyHost = parsed.host;
+      }
       return Promise.resolve(
         jsonResponse({
           id: `sess-new-${name}`,
@@ -119,6 +142,9 @@ function installFetchStub(): void {
           status: 'created',
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
+          proxyEnabled,
+          proxyType,
+          proxyHost,
         }),
       );
     }
@@ -143,6 +169,28 @@ function installFetchStub(): void {
         if (configPatchFails) return Promise.resolve(jsonResponse({ message: 'nope' }, 500));
         Object.assign(sessionConfig, body as Record<string, unknown>);
         return Promise.resolve(jsonResponse({ ...sessionConfig }));
+      }
+    }
+
+    const proxyMatch = path.match(/^\/api\/sessions\/([^/]+)\/proxy$/);
+    if (proxyMatch) {
+      if (method === 'GET') return Promise.resolve(jsonResponse({ ...sessionProxy }));
+      if (method === 'PATCH') {
+        const payload = body as { proxyUrl?: string | null; proxyType?: string | null } | undefined;
+        if (payload?.proxyUrl === null) {
+          sessionProxy = { enabled: false, proxyType: null, proxyHost: null, hasCredentials: false };
+        } else if (payload?.proxyUrl) {
+          const parsed = new URL(payload.proxyUrl);
+          sessionProxy = {
+            enabled: true,
+            proxyType: payload.proxyType ?? 'http',
+            proxyHost: parsed.host,
+            hasCredentials: !!(parsed.username || parsed.password),
+          };
+        } else if (payload?.proxyType && sessionProxy.enabled) {
+          sessionProxy = { ...sessionProxy, proxyType: payload.proxyType };
+        }
+        return Promise.resolve(jsonResponse({ ...sessionProxy }));
       }
     }
 
@@ -241,6 +289,19 @@ test('the session list renders, and action buttons gate on engineLoaded rather t
 
   const qrCard = screen.getByText('new-device').closest('.session-card') as HTMLElement;
   within(qrCard).getByRole('button', { name: 'Show QR' });
+  within(qrCard).getByRole('button', { name: 'Proxy' });
+});
+
+test('the card body shows configured proxy status from the list payload', async () => {
+  const { screen, within } = rtl;
+  resetFetchCalls();
+  renderSessions();
+
+  const qrCard = (await screen.findByText('new-device')).closest('.session-card') as HTMLElement;
+  within(qrCard).getByText('HTTP · proxy.internal:8080');
+
+  const staleCard = screen.getByText('stale-engine').closest('.session-card') as HTMLElement;
+  within(staleCard).getByText('None');
 });
 
 test('creating a session issues POST /api/sessions with the entered name', async () => {
@@ -263,6 +324,48 @@ test('creating a session issues POST /api/sessions with the entered name', async
   });
 
   await screen.findByText('backup-bot');
+});
+
+test('opening the proxy modal fetches GET /api/sessions/:id/proxy', async () => {
+  const { screen, fireEvent, within, waitFor } = rtl;
+  resetFetchCalls();
+  renderSessions();
+
+  await screen.findByText('new-device');
+  const qrCard = screen.getByText('new-device').closest('.session-card') as HTMLElement;
+  fireEvent.click(within(qrCard).getByRole('button', { name: 'Proxy' }));
+
+  await screen.findByRole('dialog');
+  await waitFor(() => {
+    assert.ok(findFetchCall('GET', '/api/sessions/sess-qr-1/proxy'), 'expected a GET to /proxy');
+  });
+});
+
+test('saving proxy settings issues PATCH /api/sessions/:id/proxy', async () => {
+  const { screen, fireEvent, within, waitFor } = rtl;
+  resetFetchCalls();
+  renderSessions();
+
+  await screen.findByText('new-device');
+  const qrCard = screen.getByText('new-device').closest('.session-card') as HTMLElement;
+  fireEvent.click(within(qrCard).getByRole('button', { name: 'Proxy' }));
+
+  const dialog = await screen.findByRole('dialog');
+  const toggle = within(dialog).getByRole('checkbox');
+  fireEvent.click(toggle);
+  fireEvent.change(within(dialog).getByLabelText('Proxy URL'), {
+    target: { value: 'http://user:pass@proxy.internal:8080' },
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+  await waitFor(() => {
+    const call = findFetchCall('PATCH', '/api/sessions/sess-qr-1/proxy');
+    assert.ok(call, 'expected a PATCH to /proxy');
+    assert.deepEqual(call!.body, {
+      proxyUrl: 'http://user:pass@proxy.internal:8080',
+      proxyType: 'http',
+    });
+  });
 });
 
 test('a typed pairing phone number survives toggling to the QR tab and back', async () => {

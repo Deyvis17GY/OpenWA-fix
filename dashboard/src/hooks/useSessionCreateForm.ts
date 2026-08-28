@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { sessionApi, type Session } from '../services/api';
+import { sessionApi, type Session, type SessionProxyType } from '../services/api';
 import { useToast } from './useToast';
 
 export interface UseSessionCreateFormArgs {
@@ -13,6 +13,12 @@ export interface SessionCreateForm {
   setShowCreateModal: (open: boolean) => void;
   newSessionName: string;
   setNewSessionName: (name: string) => void;
+  useProxy: boolean;
+  setUseProxy: (enabled: boolean) => void;
+  proxyUrl: string;
+  setProxyUrl: (url: string) => void;
+  proxyType: SessionProxyType;
+  setProxyType: (type: SessionProxyType) => void;
   creating: boolean;
   handleCreate: () => Promise<void>;
 }
@@ -29,14 +35,29 @@ export function useSessionCreateForm({ onCreated, onFailed }: UseSessionCreateFo
   const toast = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
+  const [useProxy, setUseProxy] = useState(false);
+  const [proxyUrl, setProxyUrl] = useState('');
+  const [proxyType, setProxyType] = useState<SessionProxyType>('http');
   const [creating, setCreating] = useState(false);
+
+  const resetProxyFields = () => {
+    setUseProxy(false);
+    setProxyUrl('');
+    setProxyType('http');
+  };
 
   const handleCreate = async () => {
     if (!newSessionName.trim()) return;
     try {
       setCreating(true);
-      const newSession = await sessionApi.create(newSessionName);
+      const newSession = await sessionApi.create(
+        newSessionName,
+        useProxy && proxyUrl.trim()
+          ? { proxyUrl: proxyUrl.trim(), proxyType }
+          : undefined,
+      );
       setNewSessionName('');
+      resetProxyFields();
       setShowCreateModal(false);
       toast.success(t('sessions.create.successTitle'), t('sessions.create.successDesc', { name: newSession.name }));
       onCreated(newSession);
@@ -49,5 +70,18 @@ export function useSessionCreateForm({ onCreated, onFailed }: UseSessionCreateFo
     }
   };
 
-  return { showCreateModal, setShowCreateModal, newSessionName, setNewSessionName, creating, handleCreate };
+  return {
+    showCreateModal,
+    setShowCreateModal,
+    newSessionName,
+    setNewSessionName,
+    useProxy,
+    setUseProxy,
+    proxyUrl,
+    setProxyUrl,
+    proxyType,
+    setProxyType,
+    creating,
+    handleCreate,
+  };
 }

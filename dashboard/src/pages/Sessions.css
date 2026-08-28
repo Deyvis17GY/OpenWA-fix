@@ -86,6 +86,12 @@
   margin-bottom: 1.25rem;
 }
 
+.sessions-page .session-card .session-proxy {
+  margin: -0.75rem 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
 .sessions-page .card-header h3 {
   /* Inherits from H3 */
   margin: 0;
@@ -861,4 +867,24 @@
 .sessions-page .toggle-switch input:focus-visible + .toggle-slider {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+.sessions-page .proxy-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sessions-page .proxy-form-section input[type='text'] {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-white);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  box-sizing: border-box;
 }

@@ -16,7 +16,14 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { setTimeout } from 'node:timers/promises';
 import { EngineTransportError } from '../../common/errors/engine-transport.error';
 import { Session, SessionStatus } from './entities/session.entity';
-import { CreateSessionDto, SessionConfigResponseDto, UpdateSessionConfigDto } from './dto';
+import {
+  CreateSessionDto,
+  SessionConfigResponseDto,
+  UpdateSessionConfigDto,
+  SessionProxyResponseDto,
+  UpdateSessionProxyDto,
+  projectSessionProxy,
+} from './dto';
 import { EngineRegistry } from '../../engine/engine-registry.service';
 import { SessionLivenessWatchdog } from './session-liveness-watchdog.service';
 import { SessionErrorStore } from './session-error-store.service';
@@ -388,6 +395,39 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
     // write the whole row back from a snapshot taken before this await.
     await this.sessionRepository.update(id, { config: config as QueryDeepPartialEntity<Record<string, unknown>> });
     return this.projectConfig(config);
+  }
+
+  async getProxy(id: string): Promise<SessionProxyResponseDto> {
+    const session = await this.findOne(id);
+    return projectSessionProxy(session);
+  }
+
+  /**
+   * Persist per-session proxy settings. No engine restart — proxy is read at initializeEngine() on
+   * the next start(), matching the reconnect settings on PATCH /config.
+   */
+  async updateProxy(id: string, dto: UpdateSessionProxyDto): Promise<SessionProxyResponseDto> {
+    const session = await this.findOne(id);
+
+    if (dto.proxyUrl === null) {
+      await this.sessionRepository.update(id, { proxyUrl: null, proxyType: null });
+      return projectSessionProxy({ proxyUrl: null, proxyType: null });
+    }
+
+    const nextUrl = dto.proxyUrl !== undefined ? dto.proxyUrl : session.proxyUrl;
+    let nextType: Session['proxyType'] = dto.proxyType !== undefined ? dto.proxyType : session.proxyType;
+
+    if (nextUrl) {
+      if (!nextType) nextType = 'http';
+    } else {
+      nextType = null;
+    }
+
+    if (dto.proxyUrl !== undefined || dto.proxyType !== undefined) {
+      await this.sessionRepository.update(id, { proxyUrl: nextUrl ?? null, proxyType: nextType });
+    }
+
+    return projectSessionProxy({ proxyUrl: nextUrl ?? null, proxyType: nextType });
   }
 
   /** Record removal + engine retirement + credential purge: owned by the lifecycle service. */
