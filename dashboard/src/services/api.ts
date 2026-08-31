@@ -83,11 +83,6 @@ export interface Session {
    * dashboard can be served by a gateway that predates the field.
    */
   restriction?: AccountRestriction | null;
-  /** Whether a per-session egress proxy is configured. Optional for gateways predating the field. */
-  proxyEnabled?: boolean;
-  proxyType?: SessionProxyType | null;
-  /** host:port only — credentials are never returned. */
-  proxyHost?: string | null;
 }
 
 /** One participant's presence within a chat. */
@@ -791,10 +786,7 @@ export const sessionApi = {
       body: JSON.stringify(patch),
     }),
   getProxy: (id: string) => request<SessionProxy>(`/sessions/${id}/proxy`),
-  updateProxy: (
-    id: string,
-    patch: { proxyUrl?: string | null; proxyType?: SessionProxyType | null },
-  ) =>
+  updateProxy: (id: string, patch: { proxyUrl?: string | null }) =>
     request<SessionProxy>(`/sessions/${id}/proxy`, {
       method: 'PATCH',
       body: JSON.stringify(patch),

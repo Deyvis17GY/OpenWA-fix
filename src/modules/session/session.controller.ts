@@ -186,8 +186,8 @@ export class SessionController {
   @ApiOperation({
     summary: 'Update the per-session egress proxy configuration',
     description:
-      'Sets or clears the proxy URL and type. Credentials in `proxyUrl` are stored but never ' +
-      'returned by GET. No restart is performed — changes apply on the next session start.',
+      'Sets or clears the proxy URL. Credentials in `proxyUrl` are stored but never returned by GET. ' +
+      'No restart is performed — changes apply on the next session start.',
   })
   @ApiParam({ name: 'sessionId', description: 'Session ID' })
   @ApiResponse({
@@ -195,7 +195,7 @@ export class SessionController {
     description: 'Updated proxy configuration',
     type: SessionProxyResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid proxyUrl or proxyType' })
+  @ApiResponse({ status: 400, description: 'Invalid proxyUrl' })
   @ApiResponse({ status: 404, description: 'Session not found' })
   async updateProxy(
     @Param('sessionId', ParseUUIDPipe) id: string,

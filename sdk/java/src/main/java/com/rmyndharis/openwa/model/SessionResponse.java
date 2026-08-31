@@ -24,13 +24,4 @@ public record SessionResponse(
      * session mid automatic-reconnect (engine present) and one stopped with no engine. {@code null}
      * from a gateway older than the field.
      */
-    Boolean engineLoaded,
-    /**
-     * Whether a per-session egress proxy is configured. {@code null} from a gateway older than the
-     * field.
-     */
-    Boolean proxyEnabled,
-    /** Configured proxy protocol when {@code proxyEnabled} is true. */
-    ProxyType proxyType,
-    /** Parsed host:port from the stored proxy URL — credentials are never returned. */
-    String proxyHost) {}
+    Boolean engineLoaded) {}

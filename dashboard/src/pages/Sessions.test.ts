@@ -27,9 +27,6 @@ const SESSION_QR: Session = {
   status: 'qr_ready',
   engineLoaded: true,
   phone: null,
-  proxyEnabled: true,
-  proxyType: 'http',
-  proxyHost: 'proxy.internal:8080',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -44,9 +41,6 @@ const SESSION_STALE_ENGINE: Session = {
   status: 'disconnected',
   engineLoaded: true,
   phone: '15550009999',
-  proxyEnabled: false,
-  proxyType: null,
-  proxyHost: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -126,15 +120,6 @@ function installFetchStub(): void {
     if (method === 'POST' && path === '/api/sessions') {
       const payload = body as { name?: string; proxyUrl?: string; proxyType?: string } | undefined;
       const name = payload?.name ?? 'unnamed';
-      let proxyEnabled = false;
-      let proxyType: string | null = null;
-      let proxyHost: string | null = null;
-      if (payload?.proxyUrl) {
-        const parsed = new URL(payload.proxyUrl);
-        proxyEnabled = true;
-        proxyType = payload.proxyType ?? 'http';
-        proxyHost = parsed.host;
-      }
       return Promise.resolve(
         jsonResponse({
           id: `sess-new-${name}`,
@@ -142,9 +127,6 @@ function installFetchStub(): void {
           status: 'created',
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',
-          proxyEnabled,
-          proxyType,
-          proxyHost,
         }),
       );
     }
@@ -176,19 +158,18 @@ function installFetchStub(): void {
     if (proxyMatch) {
       if (method === 'GET') return Promise.resolve(jsonResponse({ ...sessionProxy }));
       if (method === 'PATCH') {
-        const payload = body as { proxyUrl?: string | null; proxyType?: string | null } | undefined;
+        const payload = body as { proxyUrl?: string | null } | undefined;
         if (payload?.proxyUrl === null) {
           sessionProxy = { enabled: false, proxyType: null, proxyHost: null, hasCredentials: false };
         } else if (payload?.proxyUrl) {
           const parsed = new URL(payload.proxyUrl);
+          const scheme = parsed.protocol.replace(':', '');
           sessionProxy = {
             enabled: true,
-            proxyType: payload.proxyType ?? 'http',
+            proxyType: scheme,
             proxyHost: parsed.host,
             hasCredentials: !!(parsed.username || parsed.password),
           };
-        } else if (payload?.proxyType && sessionProxy.enabled) {
-          sessionProxy = { ...sessionProxy, proxyType: payload.proxyType };
         }
         return Promise.resolve(jsonResponse({ ...sessionProxy }));
       }
@@ -292,18 +273,6 @@ test('the session list renders, and action buttons gate on engineLoaded rather t
   within(qrCard).getByRole('button', { name: 'Proxy' });
 });
 
-test('the card body shows configured proxy status from the list payload', async () => {
-  const { screen, within } = rtl;
-  resetFetchCalls();
-  renderSessions();
-
-  const qrCard = (await screen.findByText('new-device')).closest('.session-card') as HTMLElement;
-  within(qrCard).getByText('HTTP · proxy.internal:8080');
-
-  const staleCard = screen.getByText('stale-engine').closest('.session-card') as HTMLElement;
-  within(staleCard).getByText('None');
-});
-
 test('creating a session issues POST /api/sessions with the entered name', async () => {
   const { screen, fireEvent, waitFor, within } = rtl;
   resetFetchCalls();
@@ -363,7 +332,6 @@ test('saving proxy settings issues PATCH /api/sessions/:id/proxy', async () => {
     assert.ok(call, 'expected a PATCH to /proxy');
     assert.deepEqual(call!.body, {
       proxyUrl: 'http://user:pass@proxy.internal:8080',
-      proxyType: 'http',
     });
   });
 });

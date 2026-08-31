@@ -31,14 +31,14 @@ describe('UpdateSessionProxyDto proxyUrl validation', () => {
     expect(errs({ proxyUrl: null })).toHaveLength(0);
   });
 
-  it('allows an omitted proxyUrl', () => {
-    expect(errs({ proxyType: 'http' })).toHaveLength(0);
+  it('allows an empty body', () => {
+    expect(errs({})).toHaveLength(0);
   });
 });
 
 describe('projectSessionProxy', () => {
   it('reports disabled when no proxy is stored', () => {
-    expect(projectSessionProxy({ proxyUrl: null, proxyType: null })).toEqual({
+    expect(projectSessionProxy({ proxyUrl: null })).toEqual({
       enabled: false,
       proxyType: null,
       proxyHost: null,
@@ -50,7 +50,6 @@ describe('projectSessionProxy', () => {
     expect(
       projectSessionProxy({
         proxyUrl: 'http://user:secret@proxy.internal:8080',
-        proxyType: 'http',
       }),
     ).toEqual({
       enabled: true,
@@ -60,10 +59,22 @@ describe('projectSessionProxy', () => {
     });
   });
 
+  it('derives proxyType from the URL scheme, not the stored column', () => {
+    expect(
+      projectSessionProxy({
+        proxyUrl: 'socks5://proxy.example.com:1080',
+      }),
+    ).toEqual({
+      enabled: true,
+      proxyType: 'socks5',
+      proxyHost: 'proxy.example.com:1080',
+      hasCredentials: false,
+    });
+  });
+
   it('never includes the full proxyUrl in the projection', () => {
     const result = projectSessionProxy({
       proxyUrl: 'socks5://proxy.example.com:1080',
-      proxyType: 'socks5',
     });
     expect(result).not.toHaveProperty('proxyUrl');
     expect(result.proxyHost).toBe('proxy.example.com:1080');

@@ -163,12 +163,6 @@ type SessionResponse struct {
 	// "disconnected" covers both a session mid automatic-reconnect (engine present) and one stopped
 	// with no engine. Nil from a gateway that predates the field.
 	EngineLoaded bool `json:"engineLoaded"`
-	// ProxyEnabled reports whether a per-session egress proxy is configured.
-	ProxyEnabled bool `json:"proxyEnabled"`
-	// ProxyType is the configured proxy protocol when ProxyEnabled is true.
-	ProxyType *ProxyType `json:"proxyType,omitempty"`
-	// ProxyHost is host:port parsed from the stored proxy URL -- credentials are never returned.
-	ProxyHost *string `json:"proxyHost,omitempty"`
 }
 
 // ProxyType is the scheme of a session proxy.
@@ -201,8 +195,7 @@ type SessionProxy struct {
 // UpdateSessionProxyRequest updates per-session proxy settings. Send ProxyURL as a JSON null to
 // clear. Changes apply on the next start, not to a running engine.
 type UpdateSessionProxyRequest struct {
-	ProxyURL  *string    `json:"proxyUrl,omitempty"`
-	ProxyType *ProxyType `json:"proxyType,omitempty"`
+	ProxyURL *string `json:"proxyUrl,omitempty"`
 }
 
 // QrCodeResponse carries the current QR code for a session awaiting scan.

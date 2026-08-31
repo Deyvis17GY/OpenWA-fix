@@ -411,23 +411,15 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
 
     if (dto.proxyUrl === null) {
       await this.sessionRepository.update(id, { proxyUrl: null, proxyType: null });
-      return projectSessionProxy({ proxyUrl: null, proxyType: null });
+      return projectSessionProxy({ proxyUrl: null });
     }
 
-    const nextUrl = dto.proxyUrl !== undefined ? dto.proxyUrl : session.proxyUrl;
-    let nextType: Session['proxyType'] = dto.proxyType !== undefined ? dto.proxyType : session.proxyType;
-
-    if (nextUrl) {
-      if (!nextType) nextType = 'http';
-    } else {
-      nextType = null;
+    if (dto.proxyUrl !== undefined) {
+      await this.sessionRepository.update(id, { proxyUrl: dto.proxyUrl, proxyType: null });
+      return projectSessionProxy({ proxyUrl: dto.proxyUrl });
     }
 
-    if (dto.proxyUrl !== undefined || dto.proxyType !== undefined) {
-      await this.sessionRepository.update(id, { proxyUrl: nextUrl ?? null, proxyType: nextType });
-    }
-
-    return projectSessionProxy({ proxyUrl: nextUrl ?? null, proxyType: nextType });
+    return projectSessionProxy(session);
   }
 
   /** Record removal + engine retirement + credential purge: owned by the lifecycle service. */

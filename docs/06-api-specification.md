@@ -191,7 +191,7 @@ Every path below is prefixed with `/api`. Unless marked **public**, send `X-API-
 
 ### 6.4.1 Sessions
 
-Base path `/api/sessions`. All routes that return a session return data shaped by `SessionResponseDto.fromEntity` (via `transformSession`), which **strips** `config` and the raw credential-bearing `proxyUrl` column, renames the entity field `lastActiveAt` to `lastActive`, and **projects** masked proxy fields (`proxyEnabled`, `proxyType`, `proxyHost`). Session `status` wire values are lowercase: `created | initializing | qr_ready | authenticating | ready | disconnected | action_required | failed`.
+Base path `/api/sessions`. All routes that return a session return data shaped by `SessionResponseDto.fromEntity` (via `transformSession`), which **strips** `config` and the raw credential-bearing `proxyUrl` / `proxyType` columns and renames the entity field `lastActiveAt` to `lastActive`. Masked proxy details are available from `GET/PATCH /api/sessions/:sessionId/proxy` only. Session `status` wire values are lowercase: `created | initializing | qr_ready | authenticating | ready | disconnected | action_required | failed`.
 
 #### GET /api/sessions
 
@@ -222,15 +222,12 @@ List all sessions, scoped to the API key's `allowedSessions`, ordered `createdAt
     "updatedAt": "2026-06-25T09:01:55.000Z",
     "lastError": null,
     "restriction": null,
-    "engineLoaded": true,
-    "proxyEnabled": false,
-    "proxyType": null,
-    "proxyHost": null
+    "engineLoaded": true
   }
 ]
 ```
 
-`lastError` is non-null only when `status` is `failed` or `action_required`; any other status clears it. `config` and the raw `proxyUrl` column are not present (stripped by `fromEntity`); masked proxy fields (`proxyEnabled`, `proxyType`, `proxyHost`) are included instead.
+`lastError` is non-null only when `status` is `failed` or `action_required`; any other status clears it. `config` and the raw `proxyUrl` / `proxyType` columns are not present (stripped by `fromEntity`).
 
 `restriction` reports a limit **WhatsApp itself** has placed on the account, as opposed to `lastError`, which describes a fault on the gateway's side of the link. It is `null` when there is none, and otherwise `{ kind, code, expiresAt }`:
 
@@ -272,10 +269,7 @@ Get a single session by ID.
   "createdAt": "2026-06-20T11:30:00.000Z",
   "updatedAt": "2026-06-25T09:01:55.000Z",
   "lastError": null,
-  "engineLoaded": true,
-  "proxyEnabled": true,
-  "proxyType": "http",
-  "proxyHost": "proxy.example.com:8080"
+  "engineLoaded": true
 }
 ```
 
@@ -341,7 +335,7 @@ and therefore apply on the next start, leaving a reconnect sequence already in f
 
 #### GET /api/sessions/:sessionId/proxy
 
-Read a session's masked proxy configuration. Credentials embedded in the stored `proxyUrl` are **never** returned — only the parsed `proxyHost:port` and a `hasCredentials` flag.
+Read a session's masked proxy configuration. Credentials embedded in the stored `proxyUrl` are **never** returned — only the parsed `proxyHost:port`, a `proxyType` derived from the URL scheme, and a `hasCredentials` flag.
 
 **Auth:** API key · **Scope:** session-scoped
 
@@ -380,18 +374,17 @@ Update per-session proxy settings. No restart is required or performed — chang
 
 **Request body** — `UpdateSessionProxyDto` (any subset; each key also accepts `null`)
 
-| Field       | Type                                      | Constraints                                                                                                                                              | Description                                                                                                                                                                                                                                        |
-| ----------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `proxyUrl`  | string                                    | `@IsOptional`; `@IsString`; max 255; `@IsUrl` (protocols `http`/`https`/`socks4`/`socks5`, `require_protocol`, `require_tld:false`, `allow_underscores`) | Per-session proxy egress; credentialed `http://user:pass@host` and single-label hosts allowed. Send `null` to clear. ⚠ **Must be a real, reachable proxy** when set — an unreachable value blocks the WhatsApp WebSocket on start (~30s timeout). |
-| `proxyType` | `http` \| `https` \| `socks4` \| `socks5` | `@IsOptional`; `@IsIn([...])`                                                                                                                            | Proxy protocol; defaults to `http` when `proxyUrl` is set and this is omitted.                                                                                                                                                                     |
+| Field      | Type   | Constraints                                                                                                                                              | Description                                                                                                                                                                                                                                       |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `proxyUrl` | string | `@IsOptional`; `@IsString`; max 255; `@IsUrl` (protocols `http`/`https`/`socks4`/`socks5`, `require_protocol`, `require_tld:false`, `allow_underscores`) | Per-session proxy egress; credentialed `http://user:pass@host` and single-label hosts allowed. Send `null` to clear. ⚠ **Must be a real, reachable proxy** when set — an unreachable value blocks the WhatsApp WebSocket on start (~30s timeout). |
 
 ```json
-{ "proxyUrl": "http://user:pass@proxy.example.com:8080", "proxyType": "http" }
+{ "proxyUrl": "http://user:pass@proxy.example.com:8080" }
 ```
 
 **Response** `200` — the resulting `SessionProxyResponseDto` (same shape as the GET above).
 
-**Errors:** `400` validation (bad `proxyUrl`/`proxyType`) · `401` missing/invalid key, or key not scoped to this session · `403` key lacks OPERATOR role · `404` session not found
+**Errors:** `400` validation (bad `proxyUrl`) · `401` missing/invalid key, or key not scoped to this session · `403` key lacks OPERATOR role · `404` session not found
 
 #### GET /api/sessions/:sessionId/qr
 

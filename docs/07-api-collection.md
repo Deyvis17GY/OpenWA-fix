@@ -135,7 +135,7 @@ Update per-session proxy settings (OPERATOR). No restart — changes apply on th
 curl -X PATCH "$BASE/api/sessions/$SESSION_ID/proxy" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "proxyUrl": "http://user:pass@your-real-proxy.host:8080", "proxyType": "http" }'
+  -d '{ "proxyUrl": "http://user:pass@your-real-proxy.host:8080" }'
 ```
 
 #### POST /api/sessions/:sessionId/start

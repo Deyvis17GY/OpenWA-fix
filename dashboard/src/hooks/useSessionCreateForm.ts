@@ -52,9 +52,7 @@ export function useSessionCreateForm({ onCreated, onFailed }: UseSessionCreateFo
       setCreating(true);
       const newSession = await sessionApi.create(
         newSessionName,
-        useProxy && proxyUrl.trim()
-          ? { proxyUrl: proxyUrl.trim(), proxyType }
-          : undefined,
+        useProxy && proxyUrl.trim() ? { proxyUrl: proxyUrl.trim(), proxyType } : undefined,
       );
       setNewSessionName('');
       resetProxyFields();

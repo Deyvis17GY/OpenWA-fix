@@ -1,15 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, MaxLength, IsIn, IsUrl } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsUrl } from 'class-validator';
 import type { Session } from '../entities/session.entity';
 
 export type SessionProxyType = 'http' | 'https' | 'socks4' | 'socks5';
+
+const PROTOCOL_TO_PROXY_TYPE: Record<string, SessionProxyType> = {
+  'http:': 'http',
+  'https:': 'https',
+  'socks4:': 'socks4',
+  'socks5:': 'socks5',
+};
+
+function proxyTypeFromProtocol(protocol: string): SessionProxyType | null {
+  return PROTOCOL_TO_PROXY_TYPE[protocol] ?? null;
+}
 
 export class SessionProxyResponseDto {
   @ApiProperty({ description: 'Whether a proxy URL is configured for this session', example: true })
   enabled!: boolean;
 
   @ApiProperty({
-    description: 'Configured proxy protocol',
+    description: 'Proxy protocol derived from the stored URL scheme',
     enum: ['http', 'https', 'socks4', 'socks5'],
     nullable: true,
     example: 'http',
@@ -52,20 +63,10 @@ export class UpdateSessionProxyDto {
     { message: 'proxyUrl must be a valid http(s)/socks4/socks5 URL' },
   )
   proxyUrl?: string | null;
-
-  @ApiPropertyOptional({
-    description: 'Proxy protocol. Defaults to `http` when `proxyUrl` is set and this is omitted.',
-    enum: ['http', 'https', 'socks4', 'socks5'],
-    nullable: true,
-    example: 'http',
-  })
-  @IsOptional()
-  @IsIn(['http', 'https', 'socks4', 'socks5'])
-  proxyType?: SessionProxyType | null;
 }
 
 /** Project stored proxy columns onto a safe response — never returns credentials. */
-export function projectSessionProxy(session: Pick<Session, 'proxyUrl' | 'proxyType'>): SessionProxyResponseDto {
+export function projectSessionProxy(session: Pick<Session, 'proxyUrl'>): SessionProxyResponseDto {
   if (!session.proxyUrl) {
     return { enabled: false, proxyType: null, proxyHost: null, hasCredentials: false };
   }
@@ -74,14 +75,14 @@ export function projectSessionProxy(session: Pick<Session, 'proxyUrl' | 'proxyTy
     const parsed = new URL(session.proxyUrl);
     return {
       enabled: true,
-      proxyType: session.proxyType,
+      proxyType: proxyTypeFromProtocol(parsed.protocol),
       proxyHost: parsed.host,
       hasCredentials: !!(parsed.username || parsed.password),
     };
   } catch {
     return {
       enabled: true,
-      proxyType: session.proxyType,
+      proxyType: null,
       proxyHost: null,
       hasCredentials: false,
     };

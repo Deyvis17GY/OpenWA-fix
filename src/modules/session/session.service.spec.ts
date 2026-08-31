@@ -6371,7 +6371,7 @@ describe('SessionService', () => {
       });
     });
 
-    it('persists a new proxy URL and defaults proxyType to http', async () => {
+    it('persists a new proxy URL without writing proxyType', async () => {
       (repository.findOne as jest.Mock).mockResolvedValue(createMockSession());
 
       const result = await service.updateProxy('sess-uuid-1', {
@@ -6380,7 +6380,7 @@ describe('SessionService', () => {
 
       expect(repository.update).toHaveBeenCalledWith('sess-uuid-1', {
         proxyUrl: 'http://proxy.internal:8080',
-        proxyType: 'http',
+        proxyType: null,
       });
       expect(result).toEqual({
         enabled: true,
@@ -6388,6 +6388,20 @@ describe('SessionService', () => {
         proxyHost: 'proxy.internal:8080',
         hasCredentials: false,
       });
+    });
+
+    it('derives socks5 from the URL scheme after update', async () => {
+      (repository.findOne as jest.Mock).mockResolvedValue(createMockSession());
+
+      const result = await service.updateProxy('sess-uuid-1', {
+        proxyUrl: 'socks5://proxy.internal:1080',
+      });
+
+      expect(repository.update).toHaveBeenCalledWith('sess-uuid-1', {
+        proxyUrl: 'socks5://proxy.internal:1080',
+        proxyType: null,
+      });
+      expect(result.proxyType).toBe('socks5');
     });
 
     it('clears both columns when proxyUrl is null', async () => {

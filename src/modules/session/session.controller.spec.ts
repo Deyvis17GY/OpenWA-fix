@@ -70,9 +70,6 @@ describe('SessionController — create() response contract', () => {
       lastError: null,
       restriction: null,
       engineLoaded: false,
-      proxyEnabled: true,
-      proxyType: 'http',
-      proxyHost: 'proxy.internal:8080',
     });
   });
 
@@ -379,7 +376,6 @@ describe('SessionController — proxy() response contract', () => {
   it('updateProxy audits the masked state, not the request body', async () => {
     await controller.updateProxy('sess-uuid-1', {
       proxyUrl: 'http://user:secret@proxy.internal:8080',
-      proxyType: 'http',
     });
 
     expect(auditService.logInfo).toHaveBeenCalledWith(

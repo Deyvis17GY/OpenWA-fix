@@ -34,7 +34,13 @@ import {
   replaceSession,
 } from '../utils/sessionActions';
 import { invalidateSessionQueries, reconcileSessionCache } from '../utils/sessionMutation';
-import { canCreateSession, filterSessions, isValidPairingPhone, isValidProxyUrl, sessionNameIssues } from '../utils/sessionForm';
+import {
+  canCreateSession,
+  filterSessions,
+  isValidPairingPhone,
+  isValidProxyUrl,
+  sessionNameIssues,
+} from '../utils/sessionForm';
 import { useToast } from '../hooks/useToast';
 import { useRole } from '../hooks/useRole';
 import { useSessionPairing } from '../hooks/useSessionPairing';
@@ -94,7 +100,6 @@ export function Sessions() {
   const [proxySaving, setProxySaving] = useState(false);
   const [proxyEnabled, setProxyEnabled] = useState(false);
   const [proxyUrl, setProxyUrl] = useState('');
-  const [proxyType, setProxyType] = useState<SessionProxyType>('http');
   const [proxyUrlError, setProxyUrlError] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async (): Promise<Session[]> => {
@@ -162,14 +167,14 @@ export function Sessions() {
     creating,
     handleCreate,
   } = useSessionCreateForm({
-      onCreated: newSession => {
-        // Functional append: never capture a stale `sessions` (a WS or fetch between the await and the
-        // setState would otherwise drop a row). Then invalidate the prefix so stats/groups/chats refresh.
-        setSessions(current => [...current, newSession]);
-        void invalidateSessionQueries(queryClient, queryKeys.sessions);
-      },
-      onFailed: msg => setError(msg),
-    });
+    onCreated: newSession => {
+      // Functional append: never capture a stale `sessions` (a WS or fetch between the await and the
+      // setState would otherwise drop a row). Then invalidate the prefix so stats/groups/chats refresh.
+      setSessions(current => [...current, newSession]);
+      void invalidateSessionQueries(queryClient, queryKeys.sessions);
+    },
+    onFailed: msg => setError(msg),
+  });
 
   // Reconcile the LOCAL view with an authoritative Session response. The previous handlers discarded
   // the response and fabricated `{ status: 'disconnected' }`, losing phone:null, timestamps, and other
@@ -348,7 +353,6 @@ export function Sessions() {
     setProxyInfo(null);
     setProxyEnabled(false);
     setProxyUrl('');
-    setProxyType('http');
     setProxyUrlError(null);
     if (!proxySessionId) return;
     let cancelled = false;
@@ -359,7 +363,6 @@ export function Sessions() {
         if (cancelled) return;
         setProxyInfo(data);
         setProxyEnabled(data.enabled);
-        setProxyType(data.proxyType ?? 'http');
       })
       .catch(err => {
         if (!cancelled) {
@@ -390,35 +393,20 @@ export function Sessions() {
     setProxyUrlError(null);
     setProxySaving(true);
     try {
-      let updatedProxy;
       if (!proxyEnabled) {
-        updatedProxy = await sessionApi.updateProxy(proxySession.id, { proxyUrl: null });
+        await sessionApi.updateProxy(proxySession.id, { proxyUrl: null });
       } else if (proxyUrl.trim()) {
-        updatedProxy = await sessionApi.updateProxy(proxySession.id, { proxyUrl: proxyUrl.trim(), proxyType });
+        await sessionApi.updateProxy(proxySession.id, { proxyUrl: proxyUrl.trim() });
       } else if (proxyInfo?.enabled) {
-        updatedProxy = await sessionApi.updateProxy(proxySession.id, { proxyType });
+        setProxySession(null);
+        return;
       } else {
         return;
       }
-      setSessions(current =>
-        current.map(s =>
-          s.id === proxySession.id
-            ? {
-                ...s,
-                proxyEnabled: updatedProxy.enabled,
-                proxyType: updatedProxy.proxyType,
-                proxyHost: updatedProxy.proxyHost,
-              }
-            : s,
-        ),
-      );
       toast.success(t('sessions.proxy.saveSuccessTitle'), t('sessions.proxy.saveSuccess'));
       setProxySession(null);
     } catch (err) {
-      toast.error(
-        t('sessions.proxy.saveError'),
-        err instanceof Error ? err.message : t('common.unknownError'),
-      );
+      toast.error(t('sessions.proxy.saveError'), err instanceof Error ? err.message : t('common.unknownError'));
     } finally {
       setProxySaving(false);
     }
@@ -495,8 +483,7 @@ export function Sessions() {
   // Empty is a disabled button, not a message: the form stays quiet until the user types something.
   const nameIssues = newSessionName ? sessionNameIssues(newSessionName, existingSessionNames) : [];
   const createProxyInvalid =
-    useProxy &&
-    (!createProxyUrl.trim() || (createProxyUrl.trim() && !isValidProxyUrl(createProxyUrl.trim())));
+    useProxy && (!createProxyUrl.trim() || (createProxyUrl.trim() && !isValidProxyUrl(createProxyUrl.trim())));
 
   if (loading) {
     return (
@@ -578,11 +565,7 @@ export function Sessions() {
               <button
                 className="btn-primary"
                 onClick={handleCreate}
-                disabled={
-                  creating ||
-                  !canCreateSession(newSessionName, existingSessionNames) ||
-                  createProxyInvalid
-                }
+                disabled={creating || !canCreateSession(newSessionName, existingSessionNames) || createProxyInvalid}
               >
                 {creating ? <Loader2 className="animate-spin" size={16} /> : t('common.create')}
               </button>
@@ -868,7 +851,11 @@ export function Sessions() {
                 {t('common.cancel')}
               </button>
               {canWrite && (
-                <button className="btn-primary" onClick={() => void handleProxySave()} disabled={proxySaving || proxyLoading}>
+                <button
+                  className="btn-primary"
+                  onClick={() => void handleProxySave()}
+                  disabled={proxySaving || proxyLoading}
+                >
                   {proxySaving ? <Loader2 className="animate-spin" size={16} /> : t('common.save')}
                 </button>
               )}
@@ -934,16 +921,6 @@ export function Sessions() {
                       }}
                     />
                     {proxyUrlError ? <p className="input-error">{proxyUrlError}</p> : null}
-                  </div>
-                  <div className="detail-item">
-                    <label className="detail-label" htmlFor="proxy-type">
-                      {t('sessions.proxy.type')}
-                    </label>
-                    <CustomSelect
-                      value={proxyType}
-                      onChange={value => setProxyType(value as SessionProxyType)}
-                      options={PROXY_TYPE_OPTIONS}
-                    />
                   </div>
                 </>
               )}
@@ -1057,18 +1034,6 @@ export function Sessions() {
               <div className="card-header">
                 <h3 title={session.name}>{session.name}</h3>
                 <span className={`status-pill ${session.status}`}>{formatStatus(session.status)}</span>
-              </div>
-
-              <div className="info-row session-proxy">
-                <span className="info-label">{t('sessions.card.proxy')}</span>
-                <span className="info-value" title={session.proxyEnabled ? session.proxyHost ?? undefined : undefined}>
-                  {session.proxyEnabled
-                    ? t('sessions.card.proxyEnabled', {
-                        type: (session.proxyType ?? 'http').toUpperCase(),
-                        host: session.proxyHost ?? '—',
-                      })
-                    : t('sessions.card.proxyDisabled')}
-                </span>
               </div>
 
               {session.status === 'initializing' || session.status === 'qr_ready' ? (

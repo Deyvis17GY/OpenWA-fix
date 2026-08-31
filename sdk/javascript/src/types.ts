@@ -80,12 +80,6 @@ export interface SessionResponse {
    * with no engine. Absent from a gateway that predates the field.
    */
   engineLoaded: boolean;
-  /** Whether a per-session egress proxy is configured. */
-  proxyEnabled: boolean;
-  /** Configured proxy protocol when `proxyEnabled` is true; otherwise `null`. */
-  proxyType?: 'http' | 'https' | 'socks4' | 'socks5' | null;
-  /** Parsed host:port from the stored proxy URL — credentials are never returned. */
-  proxyHost?: string | null;
 }
 
 /**
@@ -196,7 +190,6 @@ export interface SessionProxy {
 /** Update per-session proxy settings. Send `proxyUrl: null` to clear. Applies on the next start. */
 export interface UpdateSessionProxyRequest {
   proxyUrl?: string | null;
-  proxyType?: 'http' | 'https' | 'socks4' | 'socks5' | null;
 }
 
 export interface CreateSessionRequest {
