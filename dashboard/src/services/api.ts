@@ -940,6 +940,20 @@ export const apiKeyApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  update: (
+    id: string,
+    data: {
+      name?: string;
+      role?: string;
+      allowedIps?: string[];
+      allowedSessions?: string[];
+      expiresAt?: string;
+    },
+  ) =>
+    request<ApiKey>(`/auth/api-keys/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   delete: (id: string) => request<void>(`/auth/api-keys/${id}`, { method: 'DELETE' }),
   revoke: (id: string) => request<ApiKey>(`/auth/api-keys/${id}/revoke`, { method: 'POST' }),
 };

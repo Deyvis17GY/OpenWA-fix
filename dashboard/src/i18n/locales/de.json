@@ -533,7 +533,8 @@
       "role": "Rolle",
       "status": "Status",
       "lastUsed": "Zuletzt verwendet",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "sessions": "Sitzungen"
     },
     "statuses": {
       "active": "Aktiv",
@@ -554,7 +555,19 @@
     "actions": {
       "copy": "Kopieren",
       "revoke": "Widerrufen",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "editSessions": "Sitzungen bearbeiten"
+    },
+    "sessions": {
+      "label": "Sitzungszugriff",
+      "hint": "Wählen Sie die Sitzungen, die dieser Schlüssel nutzen darf.",
+      "all": "Alle Sitzungen",
+      "empty": "Noch keine Sitzungen. Dieser Schlüssel kann auf alle zugreifen, sobald welche existieren.",
+      "restricted": "{{count}} ausgewählt",
+      "editTitle": "Sitzungszugriff bearbeiten",
+      "save": "Speichern",
+      "choose": "Sitzungen wählen",
+      "leaveAll": "Für alle Sitzungen belassen"
     }
   },
   "logs": {
