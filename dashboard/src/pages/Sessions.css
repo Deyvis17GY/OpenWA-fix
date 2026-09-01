@@ -86,12 +86,6 @@
   margin-bottom: 1.25rem;
 }
 
-.sessions-page .session-card .session-proxy {
-  margin: -0.75rem 0 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
-}
-
 .sessions-page .card-header h3 {
   /* Inherits from H3 */
   margin: 0;

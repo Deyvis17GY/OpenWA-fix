@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { sessionApi, type Session, type SessionProxyType } from '../services/api';
+import { sessionApi, type Session } from '../services/api';
+import { isValidProxyUrl } from '../utils/sessionForm';
 import { useToast } from './useToast';
 
 export interface UseSessionCreateFormArgs {
@@ -17,8 +18,6 @@ export interface SessionCreateForm {
   setUseProxy: (enabled: boolean) => void;
   proxyUrl: string;
   setProxyUrl: (url: string) => void;
-  proxyType: SessionProxyType;
-  setProxyType: (type: SessionProxyType) => void;
   creating: boolean;
   handleCreate: () => Promise<void>;
 }
@@ -37,22 +36,30 @@ export function useSessionCreateForm({ onCreated, onFailed }: UseSessionCreateFo
   const [newSessionName, setNewSessionName] = useState('');
   const [useProxy, setUseProxy] = useState(false);
   const [proxyUrl, setProxyUrl] = useState('');
-  const [proxyType, setProxyType] = useState<SessionProxyType>('http');
   const [creating, setCreating] = useState(false);
 
   const resetProxyFields = () => {
     setUseProxy(false);
     setProxyUrl('');
-    setProxyType('http');
   };
+
+  // Anything typed into the proxy fields is dropped when the modal closes, however it closes. A
+  // cancelled create otherwise leaves a credentialed URL in memory for the life of the page, and
+  // prefills it the next time the modal opens.
+  useEffect(() => {
+    if (!showCreateModal) resetProxyFields();
+  }, [showCreateModal]);
 
   const handleCreate = async () => {
     if (!newSessionName.trim()) return;
+    // Guarded here rather than only on the Create button: the name field's Enter key calls this
+    // directly, so a button-only check creates a session with no proxy while the toggle says on.
+    if (useProxy && !isValidProxyUrl(proxyUrl.trim())) return;
     try {
       setCreating(true);
       const newSession = await sessionApi.create(
         newSessionName,
-        useProxy && proxyUrl.trim() ? { proxyUrl: proxyUrl.trim(), proxyType } : undefined,
+        useProxy && proxyUrl.trim() ? { proxyUrl: proxyUrl.trim() } : undefined,
       );
       setNewSessionName('');
       resetProxyFields();
@@ -77,8 +84,6 @@ export function useSessionCreateForm({ onCreated, onFailed }: UseSessionCreateFo
     setUseProxy,
     proxyUrl,
     setProxyUrl,
-    proxyType,
-    setProxyType,
     creating,
     handleCreate,
   };

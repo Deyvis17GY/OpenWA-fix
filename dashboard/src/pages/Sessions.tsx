@@ -21,7 +21,6 @@ import {
   type Session,
   type SessionConfig,
   type SessionProxy,
-  type SessionProxyType,
   type AccountRestriction,
 } from '../services/api';
 import { queryKeys } from '../hooks/queries';
@@ -65,13 +64,6 @@ function restrictionTitle(restriction: AccountRestriction, t: TFunction): string
   return parts.join(' · ');
 }
 
-const PROXY_TYPE_OPTIONS: { value: SessionProxyType; label: string }[] = [
-  { value: 'http', label: 'HTTP' },
-  { value: 'https', label: 'HTTPS' },
-  { value: 'socks4', label: 'SOCKS4' },
-  { value: 'socks5', label: 'SOCKS5' },
-];
-
 export function Sessions() {
   const { t } = useTranslation();
   useDocumentTitle(t('sessions.title'));
@@ -101,6 +93,9 @@ export function Sessions() {
   const [proxyEnabled, setProxyEnabled] = useState(false);
   const [proxyUrl, setProxyUrl] = useState('');
   const [proxyUrlError, setProxyUrlError] = useState<string | null>(null);
+  // A failed read must not look like "no proxy configured": saving from that state would clear a
+  // proxy, and the credentials with it, that the operator never got to see.
+  const [proxyLoadFailed, setProxyLoadFailed] = useState(false);
 
   const fetchSessions = useCallback(async (): Promise<Session[]> => {
     try {
@@ -162,8 +157,6 @@ export function Sessions() {
     setUseProxy,
     proxyUrl: createProxyUrl,
     setProxyUrl: setCreateProxyUrl,
-    proxyType: createProxyType,
-    setProxyType: setCreateProxyType,
     creating,
     handleCreate,
   } = useSessionCreateForm({
@@ -354,6 +347,7 @@ export function Sessions() {
     setProxyEnabled(false);
     setProxyUrl('');
     setProxyUrlError(null);
+    setProxyLoadFailed(false);
     if (!proxySessionId) return;
     let cancelled = false;
     setProxyLoading(true);
@@ -366,7 +360,8 @@ export function Sessions() {
       })
       .catch(err => {
         if (!cancelled) {
-          toast.error(t('sessions.proxy.saveError'), err instanceof Error ? err.message : t('common.unknownError'));
+          setProxyLoadFailed(true);
+          toast.error(t('dashboard.loadError'), err instanceof Error ? err.message : t('common.unknownError'));
         }
       })
       .finally(() => {
@@ -375,7 +370,11 @@ export function Sessions() {
     return () => {
       cancelled = true;
     };
-  }, [proxySessionId, t, toast]);
+    // Only the session being edited belongs in here. `t` and `toast` are recreated on every render of
+    // their providers (ToastContext hands out a fresh object literal), so listing them re-runs this
+    // effect whenever any toast appears or auto-dismisses, wiping the URL mid-typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proxySessionId]);
 
   const handleProxySave = async () => {
     if (!proxySession) return;
@@ -482,8 +481,9 @@ export function Sessions() {
   const existingSessionNames = sessions.map(s => s.name);
   // Empty is a disabled button, not a message: the form stays quiet until the user types something.
   const nameIssues = newSessionName ? sessionNameIssues(newSessionName, existingSessionNames) : [];
-  const createProxyInvalid =
-    useProxy && (!createProxyUrl.trim() || (createProxyUrl.trim() && !isValidProxyUrl(createProxyUrl.trim())));
+  // One term: isValidProxyUrl rejects '' too, so the emptiness check was redundant, and its
+  // `string && boolean` shape widened this to `boolean | ""`, which the disabled prop rejects.
+  const createProxyInvalid = useProxy && !isValidProxyUrl(createProxyUrl.trim());
 
   if (loading) {
     return (
@@ -611,12 +611,6 @@ export function Sessions() {
                   placeholder={t('sessions.proxy.urlPlaceholder')}
                   value={createProxyUrl}
                   onChange={e => setCreateProxyUrl(e.target.value)}
-                />
-                <label htmlFor="create-proxy-type">{t('sessions.proxy.type')}</label>
-                <CustomSelect
-                  value={createProxyType}
-                  onChange={value => setCreateProxyType(value as SessionProxyType)}
-                  options={PROXY_TYPE_OPTIONS}
                 />
                 {createProxyInvalid && createProxyUrl.trim() && (
                   <p className="input-error">{t('sessions.proxy.invalidUrl')}</p>
@@ -850,7 +844,7 @@ export function Sessions() {
               <button className="btn-secondary" onClick={() => setProxySession(null)}>
                 {t('common.cancel')}
               </button>
-              {canWrite && (
+              {canWrite && !proxyLoadFailed && (
                 <button
                   className="btn-primary"
                   onClick={() => void handleProxySave()}
@@ -865,6 +859,14 @@ export function Sessions() {
           {proxyLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
               <Loader2 className="animate-spin" size={24} />
+            </div>
+          ) : proxyLoadFailed ? (
+            // No form at all: an editable form defaulting to "off" invites a Save that clears a
+            // proxy nobody could read back, credentials included.
+            <div className="detail-grid proxy-form-section">
+              <div className="detail-item">
+                <span className="detail-value">{t('dashboard.loadError')}</span>
+              </div>
             </div>
           ) : (
             <div className="detail-grid proxy-form-section">

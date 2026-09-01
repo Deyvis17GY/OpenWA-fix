@@ -79,6 +79,7 @@ const fetchCalls: FetchCall[] = [];
 function resetFetchCalls(): void {
   fetchCalls.length = 0;
   sessionProxy = { enabled: false, proxyType: null, proxyHost: null, hasCredentials: false };
+  proxyGetFails = false;
 }
 
 function findFetchCall(method: string, path: string): FetchCall | undefined {
@@ -92,6 +93,7 @@ function findFetchCall(method: string, path: string): FetchCall | undefined {
 // Mutable so a test can set the starting value and observe what a PATCH wrote back.
 let sessionConfig = { autoRejectCalls: false, maxReconnectAttempts: null as number | null, reconnectBaseDelay: 5000 };
 let configPatchFails = false;
+let proxyGetFails = false;
 let sessionProxy = {
   enabled: false,
   proxyType: null as string | null,
@@ -156,6 +158,7 @@ function installFetchStub(): void {
 
     const proxyMatch = path.match(/^\/api\/sessions\/([^/]+)\/proxy$/);
     if (proxyMatch) {
+      if (method === 'GET' && proxyGetFails) return Promise.resolve(jsonResponse({ message: 'boom' }, 500));
       if (method === 'GET') return Promise.resolve(jsonResponse({ ...sessionProxy }));
       if (method === 'PATCH') {
         const payload = body as { proxyUrl?: string | null } | undefined;
@@ -469,4 +472,49 @@ test('a rejected write reverts the toggle instead of leaving it showing a state 
   // are being auto-rejected when the gateway still has it off.
   await rtl.waitFor(() => assert.equal((rtl.screen.getByRole('checkbox') as HTMLInputElement).checked, false));
   configPatchFails = false;
+});
+
+test('a failed proxy read offers no Save, so it cannot clear a proxy nobody could see', async () => {
+  const { screen, fireEvent, within, waitFor } = rtl;
+  resetFetchCalls();
+  // The session HAS a proxy, with credentials the API deliberately never returns. Reading it fails.
+  sessionProxy = { enabled: true, proxyType: 'socks5', proxyHost: 'proxy.internal:1080', hasCredentials: true };
+  proxyGetFails = true;
+  renderSessions();
+
+  await screen.findByText('new-device');
+  const qrCard = screen.getByText('new-device').closest('.session-card') as HTMLElement;
+  fireEvent.click(within(qrCard).getByRole('button', { name: 'Proxy' }));
+
+  const dialog = await screen.findByRole('dialog');
+  await waitFor(() => assert.ok(findFetchCall('GET', '/api/sessions/sess-qr-1/proxy')));
+
+  // No editable form and no Save: an "off" toggle here would read as "no proxy configured", and
+  // saving from that state sends proxyUrl:null, destroying the stored URL and its credentials.
+  await waitFor(() => assert.equal(within(dialog).queryByRole('button', { name: 'Save' }), null));
+  assert.equal(within(dialog).queryByRole('checkbox'), null);
+  assert.equal(findFetchCall('PATCH', '/api/sessions/sess-qr-1/proxy'), undefined);
+});
+
+test('saving without retyping the URL leaves the stored proxy and its credentials alone', async () => {
+  const { screen, fireEvent, within, waitFor } = rtl;
+  resetFetchCalls();
+  sessionProxy = { enabled: true, proxyType: 'http', proxyHost: 'proxy.internal:8080', hasCredentials: true };
+  renderSessions();
+
+  await screen.findByText('new-device');
+  const qrCard = screen.getByText('new-device').closest('.session-card') as HTMLElement;
+  fireEvent.click(within(qrCard).getByRole('button', { name: 'Proxy' }));
+
+  const dialog = await screen.findByRole('dialog');
+  await waitFor(() => assert.ok(findFetchCall('GET', '/api/sessions/sess-qr-1/proxy')));
+  // The URL field is deliberately empty: credentials are never sent back to render.
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+  await waitFor(() => assert.equal(screen.queryByRole('dialog'), null));
+  assert.equal(
+    findFetchCall('PATCH', '/api/sessions/sess-qr-1/proxy'),
+    undefined,
+    'an untouched form must not write, or it would replace a credentialed URL with nothing',
+  );
 });

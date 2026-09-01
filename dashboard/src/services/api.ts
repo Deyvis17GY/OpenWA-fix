@@ -774,7 +774,7 @@ export const sessionApi = {
       method: 'POST',
       body: JSON.stringify({
         name,
-        ...(options?.proxyUrl ? { proxyUrl: options.proxyUrl, proxyType: options.proxyType ?? 'http' } : {}),
+        ...(options?.proxyUrl ? { proxyUrl: options.proxyUrl } : {}),
       }),
     }),
   delete: (id: string) => request<void>(`/sessions/${id}`, { method: 'DELETE' }),
