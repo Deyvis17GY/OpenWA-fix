@@ -562,6 +562,88 @@
         ]
       }
     },
+    "/api/sessions/{sessionId}/proxy": {
+      "get": {
+        "operationId": "SessionController_getProxy",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "description": "Session ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Effective proxy configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionProxyResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        },
+        "summary": "Get the per-session egress proxy configuration (credentials masked)",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "patch": {
+        "description": "Sets or clears the proxy URL. Credentials in `proxyUrl` are stored but never returned by GET. No restart is performed — changes apply on the next session start.",
+        "operationId": "SessionController_updateProxy",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "description": "Session ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSessionProxyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated proxy configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionProxyResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid proxyUrl"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        },
+        "summary": "Update the per-session egress proxy configuration",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
     "/api/sessions/{sessionId}/start": {
       "post": {
         "operationId": "SessionController_start",
@@ -10117,6 +10199,56 @@
             "maximum": 300000,
             "example": 5000,
             "nullable": true
+          }
+        }
+      },
+      "SessionProxyResponseDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether a proxy URL is configured for this session",
+            "example": true
+          },
+          "proxyType": {
+            "type": "string",
+            "description": "Proxy protocol derived from the stored URL scheme",
+            "enum": [
+              "http",
+              "https",
+              "socks4",
+              "socks5"
+            ],
+            "nullable": true,
+            "example": "http"
+          },
+          "proxyHost": {
+            "type": "string",
+            "description": "Proxy host:port parsed from the stored URL — credentials are never returned",
+            "nullable": true,
+            "example": "proxy.example.com:8080"
+          },
+          "hasCredentials": {
+            "type": "boolean",
+            "description": "Whether the stored proxy URL embeds username/password credentials",
+            "example": false
+          }
+        },
+        "required": [
+          "enabled",
+          "proxyType",
+          "proxyHost",
+          "hasCredentials"
+        ]
+      },
+      "UpdateSessionProxyDto": {
+        "type": "object",
+        "properties": {
+          "proxyUrl": {
+            "type": "string",
+            "description": "Per-session egress proxy URL (http/https/socks4/socks5; credentialed form allowed). Send `null` to clear the proxy. Must be a real, reachable proxy — an unreachable value blocks the WhatsApp WebSocket and session start times out (~30s).",
+            "nullable": true,
+            "example": "http://user:pass@proxy.example.com:8080"
           }
         }
       },

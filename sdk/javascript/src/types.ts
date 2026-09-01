@@ -179,6 +179,19 @@ export interface UpdateSessionConfigRequest {
   reconnectBaseDelay?: number | null;
 }
 
+/** Masked per-session proxy configuration — credentials are never returned. */
+export interface SessionProxy {
+  enabled: boolean;
+  proxyType: 'http' | 'https' | 'socks4' | 'socks5' | null;
+  proxyHost: string | null;
+  hasCredentials: boolean;
+}
+
+/** Update per-session proxy settings. Send `proxyUrl: null` to clear. Applies on the next start. */
+export interface UpdateSessionProxyRequest {
+  proxyUrl?: string | null;
+}
+
 export interface CreateSessionRequest {
   /** Alphanumeric + hyphens, 3–50 chars. */
   name: string;

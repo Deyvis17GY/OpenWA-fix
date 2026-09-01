@@ -191,7 +191,7 @@ Every path below is prefixed with `/api`. Unless marked **public**, send `X-API-
 
 ### 6.4.1 Sessions
 
-Base path `/api/sessions`. All routes that return a session return data shaped by `SessionResponseDto.fromEntity` (via `transformSession`), which **strips** `config`, `proxyUrl`, and `proxyType` and renames the entity field `lastActiveAt` to `lastActive`. Session `status` wire values are lowercase: `created | initializing | qr_ready | authenticating | ready | disconnected | action_required | failed`.
+Base path `/api/sessions`. All routes that return a session return data shaped by `SessionResponseDto.fromEntity` (via `transformSession`), which **strips** `config` and the raw credential-bearing `proxyUrl` / `proxyType` columns and renames the entity field `lastActiveAt` to `lastActive`. Masked proxy details are available from `GET/PATCH /api/sessions/:sessionId/proxy` only. Session `status` wire values are lowercase: `created | initializing | qr_ready | authenticating | ready | disconnected | action_required | failed`.
 
 #### GET /api/sessions
 
@@ -227,7 +227,7 @@ List all sessions, scoped to the API key's `allowedSessions`, ordered `createdAt
 ]
 ```
 
-`lastError` is non-null only when `status` is `failed` or `action_required`; any other status clears it. `config`/`proxyUrl`/`proxyType` are not present (stripped by `fromEntity`).
+`lastError` is non-null only when `status` is `failed` or `action_required`; any other status clears it. `config` and the raw `proxyUrl` / `proxyType` columns are not present (stripped by `fromEntity`).
 
 `restriction` reports a limit **WhatsApp itself** has placed on the account, as opposed to `lastError`, which describes a fault on the gateway's side of the link. It is `null` when there is none, and otherwise `{ kind, code, expiresAt }`:
 
@@ -279,7 +279,7 @@ Get a single session by ID.
 
 Get the effective tunable configuration for a session. Only the three recognised keys are reported,
 resolved through the same clamps the engine applies — the opaque stored `config` column is never
-echoed back (it is stripped from `SessionResponseDto` alongside `proxyUrl`, and anything else placed
+echoed back (it is stripped from `SessionResponseDto` alongside the raw `proxyUrl` column, and anything else placed
 in it is stored but ignored).
 
 **Auth:** API key · **Scope:** session-scoped (key's `allowedSessions` enforced against `:sessionId`)
@@ -332,6 +332,59 @@ and therefore apply on the next start, leaving a reconnect sequence already in f
 **Response** `200` — the resulting `SessionConfigResponseDto` (same shape as the GET above).
 
 **Errors:** `400` a supplied value is outside its accepted range · `401` missing/invalid key, or key not scoped to this session · `403` key lacks OPERATOR role · `404` session not found
+
+#### GET /api/sessions/:sessionId/proxy
+
+Read a session's masked proxy configuration. Credentials embedded in the stored `proxyUrl` are **never** returned — only the parsed `proxyHost:port`, a `proxyType` derived from the URL scheme, and a `hasCredentials` flag.
+
+**Auth:** API key · **Scope:** session-scoped
+
+**Path parameters**
+
+| Name        | Type   | Description  |
+| ----------- | ------ | ------------ |
+| `sessionId` | string | Session UUID |
+
+**Response** `200` — `SessionProxyResponseDto`
+
+```json
+{
+  "enabled": true,
+  "proxyType": "http",
+  "proxyHost": "proxy.example.com:8080",
+  "hasCredentials": true
+}
+```
+
+When no proxy is configured, `enabled` is `false` and the other fields are `null`/`false`.
+
+**Errors:** `401` missing/invalid key, or key not scoped to this session · `404` session not found
+
+#### PATCH /api/sessions/:sessionId/proxy
+
+Update per-session proxy settings. No restart is required or performed — changes apply on the **next** `POST /start`. Send `proxyUrl: null` to clear the proxy.
+
+**Auth:** API key (OPERATOR) that is not restricted to specific sessions. Redirecting a session's whole egress through a chosen host is a deployment-level act, and before this route existed `proxyUrl` could only be set through `POST /api/sessions`, which is unscoped for the same reason. A session-scoped key is rejected with `403` (`@RequireUnscopedKey`).
+
+**Path parameters**
+
+| Name        | Type   | Description  |
+| ----------- | ------ | ------------ |
+| `sessionId` | string | Session UUID |
+
+**Request body** — `UpdateSessionProxyDto` (any subset; each key also accepts `null`)
+
+| Field      | Type   | Constraints                                                                                                                                              | Description                                                                                                                                                                                                                                       |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `proxyUrl` | string | `@IsOptional`; `@IsString`; max 255; `@IsUrl` (protocols `http`/`https`/`socks4`/`socks5`, `require_protocol`, `require_tld:false`, `allow_underscores`) | Per-session proxy egress; credentialed `http://user:pass@host` and single-label hosts allowed. Send `null` to clear. ⚠ **Must be a real, reachable proxy** when set — an unreachable value blocks the WhatsApp WebSocket on start (~30s timeout). |
+
+```json
+{ "proxyUrl": "http://user:pass@proxy.example.com:8080" }
+```
+
+**Response** `200` — the resulting `SessionProxyResponseDto` (same shape as the GET above).
+
+**Errors:** `400` validation (bad `proxyUrl`) · `401` missing/invalid key, or key not scoped to this session · `403` key lacks OPERATOR role, or the key is restricted to specific sessions · `404` session not found
 
 #### GET /api/sessions/:sessionId/qr
 
@@ -507,7 +560,7 @@ network cannot reach WhatsApp directly. Set `proxyUrl`/`proxyType` on the same r
 }
 ```
 
-Like every other session route, this returns the `SessionResponseDto` shape (via `fromEntity`), so `config`/`proxyUrl`/`proxyType` are stripped and `lastActiveAt` appears as `lastActive`. Newly created `status` is `created`.
+Like every other session route, this returns the `SessionResponseDto` shape (via `fromEntity`), so `config`, `proxyUrl` and `proxyType` are stripped and `lastActiveAt` appears as `lastActive`. Newly created `status` is `created`. Masked proxy details come only from `GET /api/sessions/{sessionId}/proxy`.
 
 **Errors:** `400` validation (bad `name`/`proxyUrl`/`proxyType`, or an extra non-whitelisted field) · `401` · `403` key lacks OPERATOR role · `409` session name already exists
 
