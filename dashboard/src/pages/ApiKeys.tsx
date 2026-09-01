@@ -38,7 +38,7 @@ import { Modal } from '../components/Modal';
 import { SessionScopePicker } from '../components/SessionScopePicker';
 import { useToast } from '../hooks/useToast';
 import { copyToClipboard } from '../utils/clipboard';
-import { canScopeSessions, sessionScopeNames } from '../utils/sessionScope';
+import { canScopeSessions, sameSessionScope, sessionScopeNames } from '../utils/sessionScope';
 import './ApiKeys.css';
 
 const roleNames = ['admin', 'operator', 'viewer'] as const;
@@ -121,6 +121,14 @@ export function ApiKeys() {
 
   const handleSaveSessions = async () => {
     if (!editingKey) return;
+    // An unchanged Save must not be sent. The server writes `allowedSessions` whenever the field is
+    // present, and storing [] over a key that was never scoped reads back as an authorization
+    // change: it drops every live /events socket holding that key and writes an audit row saying
+    // the scope moved when it did not.
+    if (sameSessionScope(editSessions, editingKey.allowedSessions ?? [])) {
+      setEditingKey(null);
+      return;
+    }
     try {
       await updateMutation.mutateAsync({
         id: editingKey.id,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Session } from '../services/api';
-import { sessionPickerStartsExpanded } from '../utils/sessionScope';
+import { sessionPickerStartsExpanded, sessionScopeRows } from '../utils/sessionScope';
 
 interface SessionScopePickerProps {
   sessions: Session[];
@@ -13,6 +13,9 @@ interface SessionScopePickerProps {
 export function SessionScopePicker({ sessions, selectedIds, onChange, disabled }: SessionScopePickerProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => sessionPickerStartsExpanded(selectedIds));
+  // Live sessions plus any selected id that no longer resolves to one, so a deleted session's id
+  // stays visible and can be unticked instead of riding along on every save.
+  const rows = sessionScopeRows(sessions, selectedIds);
 
   const toggle = (id: string) => {
     onChange(selectedIds.includes(id) ? selectedIds.filter(current => current !== id) : [...selectedIds, id]);
@@ -25,7 +28,7 @@ export function SessionScopePicker({ sessions, selectedIds, onChange, disabled }
   };
 
   return (
-    <div className="session-scope-picker" role="group">
+    <div className="session-scope-picker" role="group" aria-label={t('apiKeys.sessions.label')}>
       {expanded ? (
         <>
           <button
@@ -38,22 +41,24 @@ export function SessionScopePicker({ sessions, selectedIds, onChange, disabled }
             {t('apiKeys.sessions.leaveAll')}
           </button>
           <p className="session-scope-hint">{t('apiKeys.sessions.hint')}</p>
-          {sessions.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="session-scope-empty">{t('apiKeys.sessions.empty')}</p>
           ) : (
             <ul className="session-scope-list">
-              {sessions.map(session => (
-                <li key={session.id}>
+              {rows.map(({ id, session }) => (
+                <li key={id}>
                   <label className="session-scope-option">
                     <input
                       type="checkbox"
-                      checked={selectedIds.includes(session.id)}
-                      onChange={() => toggle(session.id)}
+                      checked={selectedIds.includes(id)}
+                      onChange={() => toggle(id)}
                       disabled={disabled}
                     />
                     <span className="session-scope-meta">
-                      <span className="session-scope-name">{session.name}</span>
-                      {session.phone ? <span className="session-scope-phone">{session.phone}</span> : null}
+                      {/* No live session behind the id: show it raw rather than hide it, which is
+                          the only way an operator can drop a deleted session from the allowlist. */}
+                      <span className="session-scope-name">{session ? session.name : id}</span>
+                      {session?.phone ? <span className="session-scope-phone">{session.phone}</span> : null}
                     </span>
                   </label>
                 </li>
