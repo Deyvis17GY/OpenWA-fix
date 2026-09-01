@@ -29,8 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- `browserslist` 4.28.2 to 4.28.8, closing two high-severity advisories (unbounded cache growth, and a
-  crash on untrusted custom stats). Dev-only and transitive, reached through the Nest CLI and ts-jest.
+- `browserslist` 4.28.2 to 4.28.8 in both dependency trees, closing two high-severity advisories
+  (unbounded cache growth, and a crash on untrusted custom stats). Dev-only and transitive in each,
+  so nothing that ships changes.
 
 ## [0.23.3] - 2026-08-24
 
