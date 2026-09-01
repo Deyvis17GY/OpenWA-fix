@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   engine, for large accounts whose reads fail with `Runtime.callFunctionOn timed out`. Unset keeps
   Puppeteer's own budget, so nothing changes for a deployment that does not set it. The gateway
   refuses to boot on `0` or on a value above 2147483647; see docs/12 for when to reach for it.
+  Thanks @JuanGalzerano.
+- `GET` and `PATCH /api/sessions/{sessionId}/proxy` read and update a session's egress proxy;
+  credentials are never returned, and changes apply on the next session start
+  ([#1474](https://github.com/rmyndharis/OpenWA/issues/1474)). Thanks @vitusan.
+- Sessions dashboard: set a proxy when creating a session, and view, change or clear it afterwards.
+  Thanks @vitusan.
 
 ### Changed
 
@@ -30,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   size, on both engines, instead of dropping the field and looking like a message that never had media.
 - Webhook filters and automation rules gated on `hasMedia` now match those messages.
 - Baileys logs a failed inbound media download at `warn` instead of `debug`, so it is visible by default.
+
+### Dependencies
+
+- `browserslist` 4.28.2 to 4.28.8 in both dependency trees, closing two high-severity advisories
+  (unbounded cache growth, and a crash on untrusted custom stats). Dev-only and transitive in each,
+  so nothing that ships changes.
 
 ## [0.23.3] - 2026-08-24
 
