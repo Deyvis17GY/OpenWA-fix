@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The dashboard's API Keys page can limit an operator or viewer key to chosen sessions, on creation
+  and on a key that already exists. Leaving the picker empty keeps access to every session, including
+  ones created later, and the keys table shows each key's scope. `allowedSessions` was already
+  accepted by the REST API; this is the UI for it. Thanks @sebathi.
 - `PUPPETEER_PROTOCOL_TIMEOUT_MS` raises the per-browser-command budget on the whatsapp-web.js
   engine, for large accounts whose reads fail with `Runtime.callFunctionOn timed out`. Unset keeps
   Puppeteer's own budget, so nothing changes for a deployment that does not set it. The gateway
