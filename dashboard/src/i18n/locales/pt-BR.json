@@ -506,7 +506,8 @@
       "role": "Função",
       "status": "Status",
       "lastUsed": "Último uso",
-      "actions": "Ações"
+      "actions": "Ações",
+      "sessions": "Sessões"
     },
     "statuses": {
       "active": "Ativa",
@@ -527,7 +528,19 @@
     "actions": {
       "copy": "Copiar",
       "revoke": "Revogar",
-      "delete": "Excluir"
+      "delete": "Excluir",
+      "editSessions": "Editar sessões"
+    },
+    "sessions": {
+      "label": "Acesso às sessões",
+      "hint": "Selecione as sessões que esta chave poderá usar.",
+      "all": "Todas as sessões",
+      "empty": "Ainda não há sessões. Esta chave poderá acessar todas quando existirem.",
+      "restricted": "{{count}} selecionadas",
+      "editTitle": "Editar acesso às sessões",
+      "save": "Salvar",
+      "choose": "Escolher sessões",
+      "leaveAll": "Deixar para todas as sessões"
     }
   },
   "logs": {

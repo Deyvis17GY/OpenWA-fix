@@ -552,7 +552,8 @@
       "role": "Rol",
       "status": "Durum",
       "lastUsed": "Son Kullanım",
-      "actions": "İşlemler"
+      "actions": "İşlemler",
+      "sessions": "Oturumlar"
     },
     "statuses": {
       "active": "Aktif",
@@ -573,7 +574,19 @@
     "actions": {
       "copy": "Kopyala",
       "revoke": "Geçersiz Kıl",
-      "delete": "Sil"
+      "delete": "Sil",
+      "editSessions": "Oturumları düzenle"
+    },
+    "sessions": {
+      "label": "Oturum erişimi",
+      "hint": "Bu anahtarın kullanabileceği oturumları seçin.",
+      "all": "Tüm oturumlar",
+      "empty": "Henüz oturum yok. Oturumlar oluşunca bu anahtar hepsine erişebilir.",
+      "restricted": "{{count}} seçildi",
+      "editTitle": "Oturum erişimini düzenle",
+      "save": "Kaydet",
+      "choose": "Oturumları seç",
+      "leaveAll": "Tüm oturumlar için bırak"
     }
   },
   "logs": {

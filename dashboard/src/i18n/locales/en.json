@@ -552,7 +552,8 @@
       "role": "Role",
       "status": "Status",
       "lastUsed": "Last Used",
-      "actions": "Actions"
+      "actions": "Actions",
+      "sessions": "Sessions"
     },
     "statuses": {
       "active": "Active",
@@ -573,7 +574,19 @@
     "actions": {
       "copy": "Copy",
       "revoke": "Revoke",
-      "delete": "Delete"
+      "delete": "Delete",
+      "editSessions": "Edit sessions"
+    },
+    "sessions": {
+      "label": "Session access",
+      "hint": "Select the sessions this key may use.",
+      "all": "All sessions",
+      "empty": "No sessions yet. This key will be able to access every session once any exist.",
+      "restricted": "{{count}} selected",
+      "editTitle": "Edit session access",
+      "save": "Save",
+      "choose": "Choose sessions",
+      "leaveAll": "Leave for all sessions"
     }
   },
   "logs": {
