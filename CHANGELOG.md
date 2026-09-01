@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Webhook filters and automation rules gated on `hasMedia` now match those messages.
 - Baileys logs a failed inbound media download at `warn` instead of `debug`, so it is visible by default.
 
+### Dependencies
+
+- `browserslist` 4.28.2 to 4.28.8, closing two high-severity advisories (unbounded cache growth, and a
+  crash on untrusted custom stats). Dev-only and transitive, reached through the Nest CLI and ts-jest.
+
 ## [0.23.3] - 2026-08-24
 
 ### Added
