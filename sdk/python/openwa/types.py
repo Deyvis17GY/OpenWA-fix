@@ -239,7 +239,7 @@ class SessionProxy(TypedDict):
     """Masked per-session proxy configuration — credentials are never returned."""
 
     enabled: bool
-    proxyType: ProxyType | None
+    proxyType: Literal['http', 'https', 'socks4', 'socks5'] | None
     proxyHost: str | None
     hasCredentials: bool
 

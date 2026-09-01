@@ -187,6 +187,8 @@ const EXCLUDED = {
       'BY DESIGN: `events` carries no omitempty so the key is always on the wire, which is what lets an empty slice mean "subscribe to nothing": the server keeps [] and only defaults when the key is absent. Adding omitempty would silently turn that into the default subscription',
     UpdateSessionConfigRequest:
       'BY DESIGN: every component is `json:"-"` and MarshalJSON writes the body by hand, because the three fields need an explicit null to reset and Go cannot express "null" and "absent" through one pointer, so the harvester sees no wire fields at all',
+    UpdateSessionProxyRequest:
+      'BY DESIGN, same shape as UpdateSessionConfigRequest above: clearing a proxy needs an explicit null and `omitempty` on a nil pointer omits the key instead, so ProxyURL is `json:"-"` with a ClearProxyURL flag and MarshalJSON writes the body, leaving no wire fields for the harvester to see',
   },
   'sdk/java': {
     UpdateSessionConfigRequest:
