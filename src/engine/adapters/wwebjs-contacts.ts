@@ -28,7 +28,7 @@ export class WwebjsContacts {
    * unguarded (the shape that lets a single bad entry reject the whole request).
    */
   private toContact(c: RawWwebjsContact): Contact | null {
-    const id = readWid(c.id as unknown as SerializedWid);
+    const id = readWid(c.id);
     if (!id) return null;
     return {
       id,
