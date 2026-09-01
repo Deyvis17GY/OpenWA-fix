@@ -29,6 +29,9 @@ export class SessionProxyResponseDto {
 
   @ApiProperty({
     description: 'Proxy host:port parsed from the stored URL — credentials are never returned',
+    // Explicit: `string | null` reflects as Object, which would publish this as `type: object`
+    // and quietly disarm the cross-client type comparison in check:contract-shapes.
+    type: String,
     nullable: true,
     example: 'proxy.example.com:8080',
   })
@@ -47,6 +50,7 @@ export class UpdateSessionProxyDto {
       'Per-session egress proxy URL (http/https/socks4/socks5; credentialed form allowed). Send ' +
       '`null` to clear the proxy. Must be a real, reachable proxy — an unreachable value blocks the ' +
       'WhatsApp WebSocket and session start times out (~30s).',
+    type: String,
     nullable: true,
     example: 'http://user:pass@proxy.example.com:8080',
   })

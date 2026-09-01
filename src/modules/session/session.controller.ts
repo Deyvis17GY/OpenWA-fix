@@ -183,6 +183,11 @@ export class SessionController {
 
   @Patch(':sessionId/proxy')
   @RequireRole(ApiKeyRole.OPERATOR)
+  // Routing a session's whole egress through an attacker-chosen host is an instance-level decision,
+  // not a per-session one. Before this route existed, `proxyUrl` could only be set through POST
+  // /sessions, which is unscoped by the fence above, so a key restricted to specific sessions could
+  // never configure a proxy. Keep that reachability rather than widening it as a side effect.
+  @RequireUnscopedKey()
   @ApiOperation({
     summary: 'Update the per-session egress proxy configuration',
     description:

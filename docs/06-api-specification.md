@@ -364,7 +364,7 @@ When no proxy is configured, `enabled` is `false` and the other fields are `null
 
 Update per-session proxy settings. No restart is required or performed — changes apply on the **next** `POST /start`. Send `proxyUrl: null` to clear the proxy.
 
-**Auth:** API key (OPERATOR) · **Scope:** session-scoped
+**Auth:** API key (OPERATOR) that is not restricted to specific sessions. Redirecting a session's whole egress through a chosen host is a deployment-level act, and before this route existed `proxyUrl` could only be set through `POST /api/sessions`, which is unscoped for the same reason. A session-scoped key is rejected with `403` (`@RequireUnscopedKey`).
 
 **Path parameters**
 
@@ -384,7 +384,7 @@ Update per-session proxy settings. No restart is required or performed — chang
 
 **Response** `200` — the resulting `SessionProxyResponseDto` (same shape as the GET above).
 
-**Errors:** `400` validation (bad `proxyUrl`) · `401` missing/invalid key, or key not scoped to this session · `403` key lacks OPERATOR role · `404` session not found
+**Errors:** `400` validation (bad `proxyUrl`) · `401` missing/invalid key, or key not scoped to this session · `403` key lacks OPERATOR role, or the key is restricted to specific sessions · `404` session not found
 
 #### GET /api/sessions/:sessionId/qr
 
@@ -560,7 +560,7 @@ network cannot reach WhatsApp directly. Set `proxyUrl`/`proxyType` on the same r
 }
 ```
 
-Like every other session route, this returns the `SessionResponseDto` shape (via `fromEntity`), so `config` and the raw `proxyUrl` column are stripped, masked proxy fields are projected, and `lastActiveAt` appears as `lastActive`. Newly created `status` is `created`.
+Like every other session route, this returns the `SessionResponseDto` shape (via `fromEntity`), so `config`, `proxyUrl` and `proxyType` are stripped and `lastActiveAt` appears as `lastActive`. Newly created `status` is `created`. Masked proxy details come only from `GET /api/sessions/{sessionId}/proxy`.
 
 **Errors:** `400` validation (bad `name`/`proxyUrl`/`proxyType`, or an extra non-whitelisted field) · `401` · `403` key lacks OPERATOR role · `409` session name already exists
 
