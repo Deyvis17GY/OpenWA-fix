@@ -53,6 +53,20 @@ updates:
       # with the base-image Node bump.
       - dependency-name: "@types/node"
         versions: [">=23.0.0"]
+      # The NestJS 12 line cannot be adopted yet. @bull-board/nestjs (9.6.1) and @nestjs/throttler
+      # (6.5.0) both cap @nestjs/common and @nestjs/core at ^11.0.0, and neither publishes a
+      # prerelease that accepts 12, so the bump fails npm's peer resolution with ERESOLVE before a
+      # single CI job compiles anything. Two in-repo blockers sit behind that wall: @nestjs/common@12
+      # is ESM-only and neither jest lane can load it under the current transform config (271
+      # @nestjs/common and 35 @nestjs/testing import sites), and @nestjs/swagger 12 spells
+      # nullability per document version, which moves the committed openapi.json snapshot and
+      # cascades into check:contract-shapes across five SDK clients.
+      #
+      # Pinned on the version rather than update-types so the 11.x line keeps flowing. Lift when
+      # both peers admit ^12.0.0; the upgrade itself belongs on a dedicated branch, since the
+      # README framework rows and the jest ESM config have to move in the same commit.
+      - dependency-name: "@nestjs/*"
+        versions: [">=12.0.0"]
 
   - package-ecosystem: npm
     directory: /dashboard
